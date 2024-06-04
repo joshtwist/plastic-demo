@@ -1,21 +1,18 @@
-import { ZuploContext, ZuploRequest } from "@zuplo/runtime";
+import { ZuploContext, ZuploRequest, MemoryZoneReadThroughCache } from "@zuplo/runtime";
+
 
 export default async function (request: ZuploRequest, context: ZuploContext) {
-  /**
-   * Use the log property on context to enjoy
-   * logging magic when testing your API.
-   */
-  context.log.info(`Hi, from inside your zup!`);
 
-  /**
-   * If you want to proxy an API, you can simply
-   * return the content of a fetch. Try it by
-   * uncommenting the line below.
-   */
-  // return fetch('http://www.example.com/');
+  const cache = new MemoryZoneReadThroughCache("pods-cache", context);
+  let pods = await cache.get("all-pods");
 
-  /**
-   * In this example, we're just going to return some content.
-   */
-  return "What zup?";
+  if (pods === undefined) {
+    const response = await fetch('https://79c7862690dc44e6b2b9b404199c8d04.api.mockbin.io/');
+    pods = await response.json();
+    cache.put("all-pods", pods, 60);
+  }
+  
+  const url = pods[request.user.data.customerId];
+
+  return fetch(url, request);
 }
